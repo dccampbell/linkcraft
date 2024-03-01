@@ -1,0 +1,69 @@
+name: Run Tests
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  run-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+
+      - name: Cache Composer
+        id: composer-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.composer/cache
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: |
+              ${{ runner.os }}-composer-
+
+      - name: Cache PHP Dependencies
+        id: vendor-cache
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: ${{ runner.OS }}-build-${{ hashFiles('**/composer.lock') }}
+
+      - name: Install Dependencies
+        if: steps.vendor-cache.outputs.cache-hit != 'true'
+        run: composer install -q --no-ansi --no-interaction --no-progress --prefer-dist
+
+      - name: Setup .env File
+        run: |
+          php -r "file_exists('.env') || copy('.env.example', '.env');"
+          php artisan key:generate
+
+      - name: Directory Permissions
+        run: chmod -R 777 storage bootstrap/cache
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build Assets
+        run: |
+          npm ci --no-progress
+          npm run build
+
+      - name: Run Migrations
+        env:
+          SESSION_DRIVER: array
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ":memory:"
+        run: php artisan migrate
+
+      - name: Execute tests via PestPHP
+        env:
+          SESSION_DRIVER: array
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ":memory:"
+        run: vendor/bin/pest

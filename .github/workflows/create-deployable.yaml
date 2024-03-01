@@ -1,0 +1,85 @@
+name: Create Deployable
+on:
+  push:
+    tags:
+      - "*"
+  workflow_dispatch:
+
+jobs:
+  create-deployable:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+
+      - name: Cache Composer
+        id: composer-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.composer/cache
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: |
+              ${{ runner.os }}-composer-
+
+      - name: Cache PHP Dependencies
+        id: vendor-cache
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: ${{ runner.OS }}-build-${{ hashFiles('**/composer.lock') }}
+
+      - name: Install Dependencies
+        if: steps.vendor-cache.outputs.cache-hit != 'true'
+        run: composer install -q --no-ansi --no-interaction --no-progress --prefer-dist
+
+      - name: Directory Permissions
+        run: |
+          find . -type d -exec chmod ug+rx {} \;
+          find . -type f -exec chmod ug+r {} \;
+          find ./storage -type d -exec chmod ug+rwx {} \;
+          find ./storage -type f -exec chmod ug+rw {} \;
+          find ./bootstrap/cache -type d -exec chmod ug+rwx {} \;
+          find ./bootstrap/cache -type f -exec chmod ug+rw {} \;
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build Assets
+        run: |
+          npm ci --no-progress
+          npm run build
+
+      - name: Set Artifact Label
+        run: echo ARTIFACT_LABEL="$(date +%F_%H%M%S)_$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARTIFACT_LABEL }}
+          path: |
+            app/
+            bootstrap/
+            config/
+            database/
+            lib/
+            node_modules/
+            public/
+            resources/
+            routes/
+            storage/
+            tests/
+            vendor/
+            artisan
+            *.env*
+            *.js
+            *.json
+            *.lock
+            *.md
+            *.xml
+            *.yml
