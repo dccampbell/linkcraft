@@ -45,6 +45,16 @@
         ],
         "post-create-project-cmd": [
             "@php artisan key:generate --ansi"
+        ],
+        "local": [
+            "@composer install",
+            "@post-root-package-install",
+            "@php artisan key:generate",
+            "@php artisan optimize:clear",
+            "@php artisan migrate --force",
+            "@php artisan ide-helper:generate",
+            "@php artisan ide-helper:meta",
+            "# Ready for `artisan serve`!"
         ]
     },
     "extra": {
