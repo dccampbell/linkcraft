@@ -17,3 +17,19 @@ yarn-error.log
 /.fleet
 /.idea
 /.vscode
+# End Laravel Defaults
+
+# OS Files
+.DS_Store
+Thumbs.db
+*.lnk
+*.log
+*.tmp
+*~
+
+# Project Files
+/build/
+/tmp/
+/*.sql*
+/.phpstorm*
+/_ide_helper*
